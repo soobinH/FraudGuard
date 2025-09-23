@@ -148,7 +148,7 @@ function Hero() {
     <section
       className="
         relative isolate overflow-hidden
-        bg-gradient-to-b from-sky-100 via-sky-200 to-indigo-200
+        bg-gradient-to-b from-sky-200 via-sky-50 to-white
         min-h-screen flex items-center py-16 sm:py-20 lg:py-24
       "
     >
@@ -157,12 +157,12 @@ function Hero() {
         className="
           pointer-events-none absolute inset-0
           [mask-image:radial-gradient(60%_60%_at_50%_20%,#000_40%,transparent_100%)]
-          bg-[radial-gradient(80%_60%_at_50%_-20%,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_60%)]
+          bg-[radial-gradient(80%_60%_at_50%_-20%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0)_60%)]
         "
       />
       <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6">
         <div className="w-full text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/40 px-3 py-1 text-xs font-semibold text-sky-900 shadow-sm backdrop-blur">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-3 py-1 text-xs font-semibold text-sky-900 shadow-sm backdrop-blur">
             Introducing FraudGuard API
             <a href="#api" className="ml-1 underline underline-offset-2 text-sky-800 hover:text-sky-900">
               Try now →
@@ -181,7 +181,7 @@ function Hero() {
             onSubmit={onSubmit}
             className="
               mx-auto mt-8 max-w-3xl
-              rounded-2xl border border-white/60 bg-white/70 backdrop-blur
+              rounded-2xl border border-white/60 bg-white/80 backdrop-blur
               shadow-[0_8px_30px_rgba(2,6,23,0.08)]
               p-2 sm:p-2.5
               flex flex-col sm:flex-row gap-2
@@ -191,7 +191,7 @@ function Hero() {
             <div className="relative flex-1">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
               <input
-                className="w-full rounded-xl border border-white/0 bg-white/80 pr-4 pl-9 py-3 outline-none text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400"
+                className="w-full rounded-xl border border-white/0 bg-white/90 pr-4 pl-9 py-3 outline-none text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400"
                 placeholder="Paste a suspicious message, phone number, or link…"
                 aria-label="Describe a suspicious item"
                 value={query}
@@ -242,7 +242,7 @@ function Hero() {
   );
 }
 
-/* =============== features =============== */
+/* =============== features (2번째: 풀스크린 유지) =============== */
 function Features() {
   return (
     <section id="features" className="bg-white min-h-screen flex items-center">
@@ -267,69 +267,84 @@ function Features() {
   );
 }
 
-/* =============== cta =============== */
+/* =============== cta (자연스러운 높이로 축소) =============== */
 function CTA() {
   return (
-    <section className="bg-[#f1faff] border-y border-slate-200 text-center min-h-screen flex items-center">
+    <section className="bg-[#f1faff] border-y border-slate-200 text-center py-16 sm:py-20">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="w-full">
-          <h2 className="text-4xl font-extrabold">Ready to protect against fraud?</h2>
-          <p className="text-slate-600 mt-2">Join thousands already protected by FraudGuard.</p>
-          <div className="flex justify-center gap-3 mt-8">
-            <a href="#try" className="px-6 py-3 rounded-full bg-sky-600 hover:bg-sky-700 text-white font-bold">
-              Start free trial
-            </a>
-            <a href="#demo" className="px-6 py-3 rounded-full border border-slate-200 font-bold">
-              Schedule demo
-            </a>
-          </div>
+        <h2 className="text-4xl font-extrabold">Ready to protect against fraud?</h2>
+        <p className="text-slate-600 mt-2">Join thousands already protected by FraudGuard.</p>
+        <div className="flex justify-center gap-3 mt-8">
+          <a href="#try" className="px-6 py-3 rounded-full bg-sky-600 hover:bg-sky-700 text-white font-bold">
+            Start free trial
+          </a>
+          <a href="#demo" className="px-6 py-3 rounded-full border border-slate-200 font-bold">
+            Schedule demo
+          </a>
         </div>
       </div>
     </section>
   );
 }
 
-/* =============== pricing =============== */
+/* =============== pricing (자연스러운 높이로 축소) =============== */
 function Pricing() {
   return (
-    <section id="pricing" className="bg-white min-h-screen flex items-center">
+    <section id="pricing" className="bg-white py-16 sm:py-20">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center">
+        {/* 왼쪽 정렬로 변경 */}
+        <div className="text-left">
           <h2 className="text-4xl font-extrabold">Choose your protection level</h2>
-          <p className="text-slate-600 mt-2">From individual use to enterprise-grade security</p>
+          <p className="text-slate-600 mt-2">
+            From individual use to enterprise-grade security
+          </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
             {tiers.map((t) => (
               <div
                 key={t.name}
-                className={`relative bg-white border rounded-2xl p-6 shadow-sm ${
-                  t.highlight ? "border-sky-400 ring-1 ring-sky-200" : "border-slate-200"
-                }`}
+                className={`relative bg-white rounded-2xl p-6 shadow-sm border
+                  ${t.highlight ? "border-sky-400 ring-1 ring-sky-200" : "border-slate-200"}`}
               >
                 {t.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-extrabold bg-sky-600 text-white rounded-full px-3 py-1">
                     {t.badge}
                   </div>
                 )}
-                <div className="flex items-end justify-between">
-                  <div className="font-extrabold text-xl">{t.name}</div>
-                  <div className="font-black text-3xl">
-                    {t.price}
-                    {t.period && <span className="text-sm text-slate-500 ml-1">{t.period}</span>}
+
+                {/* 헤더(이름 + 가격) */}
+                <div className="flex items-start justify-between">
+                  <div className="font-extrabold text-2xl text-slate-900">
+                    {t.name}
+                  </div>
+
+                  {/* 가격 크기 한 단계 축소 */}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+                      {t.price}
+                    </span>
+                    {t.period && (
+                      <span className="text-base sm:text-lg font-semibold text-slate-500">
+                        {t.period}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <ul className="list-disc pl-5 mt-3 text-slate-600 space-y-1">
+
+                {/* 기능 목록 */}
+                <ul className="list-disc pl-5 mt-4 text-slate-700 space-y-2">
                   {t.features.map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>
+
+                {/* CTA 버튼 */}
                 <a
                   href="#go"
-                  className={`mt-5 inline-flex w-full justify-center px-4 py-2.5 rounded-full font-bold ${
-                    t.cta.variant === "solid"
+                  className={`mt-6 inline-flex w-full justify-center px-4 py-3 rounded-full font-bold transition
+                    ${t.cta.variant === "solid"
                       ? "bg-sky-600 hover:bg-sky-700 text-white"
-                      : "border border-slate-200"
-                  }`}
+                      : "border border-slate-200 hover:bg-slate-50"}`}
                 >
                   {t.cta.label}
                 </a>
@@ -341,6 +356,8 @@ function Pricing() {
     </section>
   );
 }
+
+
 
 /* =============== footer =============== */
 function FooterLink({ label }) {
@@ -409,7 +426,7 @@ export default function App() {
       <Header onToggleMenu={() => setMenuOpen((v) => !v)} />
       <MobileMenu open={menuOpen} />
 
-      {/* 자연스러운 스크롤: 메인에 별도 높이/스냅 없음 */}
+      {/* 자연스러운 스크롤 */}
       <main>
         <Hero />
         <Features />
