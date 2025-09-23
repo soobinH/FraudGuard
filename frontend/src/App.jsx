@@ -150,6 +150,21 @@ function MobileMenu({ open }) {
 
 function Hero() {
   const [mode, setMode] = useState("semantic");
+  const [query, setQuery] = useState("");
+
+  const handleAnalyze = () => {
+    // 메시지 포맷 (원하는 템플릿으로 바꿔도 됨)
+    const msg = `FraudGuard inquiry\nMode: ${mode}\nText: ${query || "(no input)"}`;
+
+    // 1) .env 에서 링크 우선 사용 (예: https://wa.me/821012345678 또는 https://wa.me/message/XXXX)
+    const base =
+      import.meta.env.VITE_WA_LINK?.trim() ||
+      "https://wa.me/821056211982"; // ← 임시 기본값: 여길 네 번호/단축링크로 바꿔도 됨
+
+    const url = `${base}?text=${encodeURIComponent(msg)}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <section className="bg-[#ecf7ff] border-b border-slate-200">
@@ -172,8 +187,16 @@ function Hero() {
             className="flex-1 px-4 py-3 outline-none"
             placeholder="Paste a suspicious message, phone number, or link…"
             aria-label="Describe a suspicious item"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="px-5 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold">
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            className="px-5 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold"
+            disabled={!query.trim()}
+            title={!query.trim() ? "Enter some text first" : "Analyze via WhatsApp"}
+          >
             Analyze
           </button>
         </form>
@@ -197,6 +220,7 @@ function Hero() {
     </section>
   );
 }
+
 
 function Features() {
   return (
@@ -237,10 +261,6 @@ function CTA() {
           </a>
         </div>
       </div>
-
-      <div className="p-6 bg-sky-500 text-white font-bold rounded-xl text-center">
-  Tailwind OK
-</div>
 
     </section>
 
