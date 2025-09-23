@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+/* =============== data =============== */
 const navItems = [
   { label: "Features", href: "#features" },
   { label: "Pricing", href: "#pricing" },
@@ -7,40 +8,13 @@ const navItems = [
   { label: "Dashboard", href: "#dashboard" },
 ];
 
-const chips = [
-  { key: "semantic", label: "Semantic analysis" },
-  { key: "phone", label: "Phone number reports" },
-  { key: "bank", label: "Bank account verification" },
-  { key: "phish", label: "Phishing link detector" },
-  { key: "malware", label: "Malware file scanner" },
-  { key: "api", label: "Business API" },
-];
-
 const features = [
-  {
-    title: "Semantic Analysis",
-    desc: "Analyze text and screenshots to surface social-engineering patterns and risky intents.",
-  },
-  {
-    title: "Phone Number Intelligence",
-    desc: "Search reports about scammer numbers with evidence and frequency counts.",
-  },
-  {
-    title: "Bank Account Verification",
-    desc: "Check account details against known fraudulent records with real-time signals.",
-  },
-  {
-    title: "Phishing Link Detection",
-    desc: "Flag malicious URLs, fake websites, and credential traps before users click.",
-  },
-  {
-    title: "Malware File Scanner",
-    desc: "Detect malware and trojans quickly to stop damage early.",
-  },
-  {
-    title: "Business API Integration",
-    desc: "Embed fraud checks into your product with a stable, rate-limited API.",
-  },
+  { title: "Semantic Analysis", desc: "Analyze text and screenshots to surface social-engineering patterns and risky intents." },
+  { title: "Phone Number Intelligence", desc: "Search reports about scammer numbers with evidence and frequency counts." },
+  { title: "Bank Account Verification", desc: "Check account details against known fraudulent records with real-time signals." },
+  { title: "Phishing Link Detection", desc: "Flag malicious URLs, fake websites, and credential traps before users click." },
+  { title: "Malware File Scanner", desc: "Detect malware and trojans quickly to stop damage early." },
+  { title: "Business API Integration", desc: "Embed fraud checks into your product with a stable, rate-limited API." },
 ];
 
 const tiers = [
@@ -71,33 +45,24 @@ const tiers = [
   },
 ];
 
+/* =============== header =============== */
 function Header({ onToggleMenu }) {
   return (
-    <header className="bg-white border-b border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
         <div className="font-extrabold text-xl tracking-tight">FraudGuard</div>
         <nav className="hidden md:flex items-center gap-6">
           {navItems.map((n) => (
-            <a
-              key={n.label}
-              href={n.href}
-              className="text-slate-700/70 hover:text-slate-900 font-semibold"
-            >
+            <a key={n.label} href={n.href} className="text-slate-700/70 hover:text-slate-900 font-semibold">
               {n.label}
             </a>
           ))}
         </nav>
         <div className="hidden md:flex items-center gap-2">
-          <a
-            href="#sales"
-            className="px-4 py-2 rounded-full border border-slate-200 text-slate-800 font-bold"
-          >
+          <a href="#sales" className="px-4 py-2 rounded-full border border-slate-200 text-slate-800 font-bold">
             Talk to sales
           </a>
-          <a
-            href="#try"
-            className="px-4 py-2 rounded-full bg-sky-500 hover:bg-sky-600 text-white font-bold"
-          >
+          <a href="#try" className="px-4 py-2 rounded-full bg-sky-600 hover:bg-sky-700 text-white font-bold">
             Try for free
           </a>
         </div>
@@ -130,16 +95,10 @@ function MobileMenu({ open }) {
           </a>
         ))}
         <div className="flex gap-2 pt-1">
-          <a
-            href="#sales"
-            className="px-4 py-2 rounded-full border border-slate-200 text-slate-800 font-bold w-full text-center"
-          >
+          <a href="#sales" className="px-4 py-2 rounded-full border border-slate-200 text-slate-800 font-bold w-full text-center">
             Talk to sales
           </a>
-          <a
-            href="#try"
-            className="px-4 py-2 rounded-full bg-sky-500 hover:bg-sky-600 text-white font-bold w-full text-center"
-          >
+          <a href="#try" className="px-4 py-2 rounded-full bg-sky-600 hover:bg-sky-700 text-white font-bold w-full text-center">
             Try for free
           </a>
         </div>
@@ -148,211 +107,242 @@ function MobileMenu({ open }) {
   );
 }
 
+/* =============== hero =============== */
 function Hero() {
-  const [mode, setMode] = useState("semantic"); // 칩 UI 유지(전송 메시지에는 포함 안 함)
+  const [mode, setMode] = useState("semantic"); // 전송엔 미포함, UI만
   const [query, setQuery] = useState("");
 
   const openWhatsApp = () => {
     const text = query.trim();
     if (!text) return;
 
-    // 환경변수(권장): VITE_WA_PHONE=821012345678 (숫자만) 또는 VITE_WA_LINK=https://wa.me/message/XXXX
     const phone = (import.meta.env.VITE_WA_PHONE || "").replace(/\D/g, "");
     const shortLink = (import.meta.env.VITE_WA_LINK || "").trim();
 
-    // 1) 앱 딥링크: 모바일에서 WhatsApp 앱을 바로 시도 (브라우저/OS에 따라 '앱 열기' 팝업이 뜰 수 있음)
-    //   - phone 있으면 특정 챗봇 번호로, 없으면 사용자 선택창
     const deepLink = phone
       ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}`
       : `whatsapp://send?text=${encodeURIComponent(text)}`;
 
-    // 2) 웹 링크: 딥링크가 차단/무시될 경우를 대비한 웹/앱 자동 라우팅(wa.me)
-    //   - 단축 링크가 있으면 그걸 우선 사용, 없으면 번호 기반/번호 없으면 공용 링크
     const webLink =
       shortLink ||
       (phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
         : `https://wa.me/?text=${encodeURIComponent(text)}`);
 
-    // 우선 deepLink를 새 탭으로 열고, 실패하거나 차단되면 잠시 후 webLink로 폴백
     let opened = false;
     try {
       const w = window.open(deepLink, "_blank", "noopener,noreferrer");
       if (w) opened = true;
     } catch (_) {}
-
-    // 일부 브라우저/OS는 deepLink를 무시하거나 앱 미설치 시 실패 → webLink 폴백
     setTimeout(() => {
-      if (!opened) {
-        window.open(webLink, "_blank", "noopener,noreferrer");
-      }
+      if (!opened) window.open(webLink, "_blank", "noopener,noreferrer");
     }, 400);
   };
 
+  const onSubmit = (e) => {
+    e.preventDefault();
+    openWhatsApp();
+  };
+
   return (
-    <section className="bg-[#ecf7ff] border-b border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
-        <p className="text-sky-700 font-extrabold tracking-wide mb-2">
-          AI-Powered Fraud Detection
-        </p>
-        <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight">
-          Meet your AI fraud detective
-        </h1>
-        <p className="max-w-3xl mx-auto mt-3 text-slate-600">
-          Detect, analyze, and prevent fraud with a clean, fast, and privacy-friendly toolkit.
-        </p>
+    <section
+      className="
+        relative isolate overflow-hidden
+        bg-gradient-to-b from-sky-100 via-sky-200 to-indigo-200
+        min-h-screen flex items-center py-16 sm:py-20 lg:py-24
+      "
+    >
+      {/* soft highlight */}
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          [mask-image:radial-gradient(60%_60%_at_50%_20%,#000_40%,transparent_100%)]
+          bg-[radial-gradient(80%_60%_at_50%_-20%,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_60%)]
+        "
+      />
+      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="w-full text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/40 px-3 py-1 text-xs font-semibold text-sky-900 shadow-sm backdrop-blur">
+            Introducing FraudGuard API
+            <a href="#api" className="ml-1 underline underline-offset-2 text-sky-800 hover:text-sky-900">
+              Try now →
+            </a>
+          </span>
 
-        <form
-          className="mt-6 max-w-3xl mx-auto bg-white border border-slate-200 rounded-xl p-2 flex flex-col sm:flex-row gap-2"
-          onSubmit={(e) => e.preventDefault()}
-        >
-          <input
-            className="flex-1 px-4 py-3 outline-none"
-            placeholder="Paste a suspicious message, phone number, or link…"
-            aria-label="Describe a suspicious item"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button
-            type="button"
-            onClick={openWhatsApp}
-            className="px-5 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold"
-            disabled={!query.trim()}
-            title={!query.trim() ? "Enter some text first" : "Open WhatsApp"}
+          <h1 className="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
+            Meet your first AI fraud detective
+          </h1>
+          <p className="mx-auto mt-4 max-w-3xl text-base sm:text-lg text-slate-800/85">
+            Detect, analyze, and prevent fraud with a clean, fast, and privacy-friendly toolkit.
+          </p>
+
+          {/* input card */}
+          <form
+            onSubmit={onSubmit}
+            className="
+              mx-auto mt-8 max-w-3xl
+              rounded-2xl border border-white/60 bg-white/70 backdrop-blur
+              shadow-[0_8px_30px_rgba(2,6,23,0.08)]
+              p-2 sm:p-2.5
+              flex flex-col sm:flex-row gap-2
+            "
+            aria-label="Fraud analysis input"
           >
-            Analyze
-          </button>
-        </form>
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input
+                className="w-full rounded-xl border border-white/0 bg-white/80 pr-4 pl-9 py-3 outline-none text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400"
+                placeholder="Paste a suspicious message, phone number, or link…"
+                aria-label="Describe a suspicious item"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
 
-        {/* 칩(모드) UI는 유지하지만 전송 메시지에는 포함하지 않습니다 */}
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {[
-            { key: "semantic", label: "Semantic analysis" },
-            { key: "phone", label: "Phone number reports" },
-            { key: "bank", label: "Bank account verification" },
-            { key: "phish", label: "Phishing link detector" },
-            { key: "malware", label: "Malware file scanner" },
-            { key: "api", label: "Business API" },
-          ].map((c) => (
             <button
-              key={c.key}
-              onClick={() => setMode(c.key)}
-              className={`px-3.5 py-2 rounded-full border text-sm font-bold transition-colors ${
-                mode === c.key
-                  ? "bg-sky-500 border-sky-500 text-white"
-                  : "bg-white border-slate-200 text-slate-800 hover:border-slate-300"
-              }`}
+              type="submit"
+              className="rounded-xl bg-sky-600 px-5 py-3 font-bold text-white hover:bg-sky-700 active:bg-sky-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!query.trim()}
+              title={!query.trim() ? "Enter some text first" : "Open WhatsApp"}
             >
-              {c.label}
+              Analyze
             </button>
-          ))}
+          </form>
+
+          <p className="mt-2 text-sm text-slate-800/80 italic">
+            * Analyze button will open up FraudGuard&apos;s Whatsapp Chatbot
+          </p>
+
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {[
+              { key: "semantic", label: "Semantic analysis" },
+              { key: "phone", label: "Phone number reports" },
+              { key: "bank", label: "Bank account verification" },
+              { key: "phish", label: "Phishing link detector" },
+              { key: "malware", label: "Malware file scanner" },
+              { key: "api", label: "Business API" },
+            ].map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setMode(c.key)}
+                className={`px-3.5 py-2 rounded-full border text-sm font-semibold transition-colors shadow-sm ${
+                  mode === c.key
+                    ? "bg-sky-700 border-sky-700 text-white"
+                    : "bg-white/80 border-white/70 text-slate-900 hover:bg-white"
+                }`}
+                aria-pressed={mode === c.key}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-
-
+/* =============== features =============== */
 function Features() {
   return (
-    <section id="features" className="py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h2 className="text-3xl font-extrabold text-center">Comprehensive fraud protection</h2>
-        <p className="text-slate-600 text-center mt-1">
-          AI technology to identify and prevent fraud across multiple channels
-        </p>
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((f) => (
-            <article
-              key={f.title}
-              className="bg-white border border-slate-200 rounded-xl p-5 min-h-[150px]"
-            >
-              <h3 className="font-extrabold text-lg mb-2">{f.title}</h3>
-              <p className="text-slate-600">{f.desc}</p>
-            </article>
-          ))}
+    <section id="features" className="bg-white min-h-screen flex items-center">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="w-full text-center">
+          <h2 className="text-4xl font-extrabold">Comprehensive fraud protection</h2>
+          <p className="text-slate-600 mt-2">
+            AI technology to identify and prevent fraud across multiple channels
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((f) => (
+              <article key={f.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 className="font-extrabold text-lg mb-2">{f.title}</h3>
+                <p className="text-slate-600">{f.desc}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
+/* =============== cta =============== */
 function CTA() {
   return (
-    <section className="bg-[#f1faff] border-y border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 text-center">
-        <h2 className="text-3xl font-extrabold">Ready to protect against fraud?</h2>
-        <p className="text-slate-600 mt-1">Join thousands already protected by FraudGuard.</p>
-        <div className="flex justify-center gap-3 mt-4">
-          <a href="#try" className="px-5 py-3 rounded-full bg-sky-500 hover:bg-sky-600 text-white font-bold">
-            Start free trial
-          </a>
-          <a href="#demo" className="px-5 py-3 rounded-full border border-slate-200 font-bold">
-            Schedule demo
-          </a>
+    <section className="bg-[#f1faff] border-y border-slate-200 text-center min-h-screen flex items-center">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="w-full">
+          <h2 className="text-4xl font-extrabold">Ready to protect against fraud?</h2>
+          <p className="text-slate-600 mt-2">Join thousands already protected by FraudGuard.</p>
+          <div className="flex justify-center gap-3 mt-8">
+            <a href="#try" className="px-6 py-3 rounded-full bg-sky-600 hover:bg-sky-700 text-white font-bold">
+              Start free trial
+            </a>
+            <a href="#demo" className="px-6 py-3 rounded-full border border-slate-200 font-bold">
+              Schedule demo
+            </a>
+          </div>
         </div>
       </div>
-
     </section>
-
-    
   );
 }
 
+/* =============== pricing =============== */
 function Pricing() {
   return (
-    <section id="pricing" className="py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h2 className="text-3xl font-extrabold text-center">Choose your protection level</h2>
-        <p className="text-slate-600 text-center mt-1">From individual use to enterprise-grade security</p>
+    <section id="pricing" className="bg-white min-h-screen flex items-center">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-4xl font-extrabold">Choose your protection level</h2>
+          <p className="text-slate-600 mt-2">From individual use to enterprise-grade security</p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-          {tiers.map((t) => (
-            <div
-              key={t.name}
-              className={`relative bg-white border rounded-xl p-5 ${
-                t.highlight ? "border-sky-400" : "border-slate-200"
-              }`}
-            >
-              {t.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-extrabold bg-sky-500 text-white rounded-full px-3 py-1">
-                  {t.badge}
-                </div>
-              )}
-
-              <div className="flex items-end justify-between">
-                <div className="font-extrabold text-xl">{t.name}</div>
-                <div className="font-black text-3xl">
-                  {t.price}
-                  {t.period && <span className="text-sm text-slate-500 ml-1">{t.period}</span>}
-                </div>
-              </div>
-
-              <ul className="list-disc pl-5 mt-3 text-slate-600">
-                {t.features.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-
-              <a
-                href="#go"
-                className={`mt-4 inline-flex w-full justify-center px-4 py-2.5 rounded-full font-bold ${
-                  t.cta.variant === "solid"
-                    ? "bg-sky-500 hover:bg-sky-600 text-white"
-                    : "border border-slate-200"
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+            {tiers.map((t) => (
+              <div
+                key={t.name}
+                className={`relative bg-white border rounded-2xl p-6 shadow-sm ${
+                  t.highlight ? "border-sky-400 ring-1 ring-sky-200" : "border-slate-200"
                 }`}
               >
-                {t.cta.label}
-              </a>
-            </div>
-          ))}
+                {t.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-extrabold bg-sky-600 text-white rounded-full px-3 py-1">
+                    {t.badge}
+                  </div>
+                )}
+                <div className="flex items-end justify-between">
+                  <div className="font-extrabold text-xl">{t.name}</div>
+                  <div className="font-black text-3xl">
+                    {t.price}
+                    {t.period && <span className="text-sm text-slate-500 ml-1">{t.period}</span>}
+                  </div>
+                </div>
+                <ul className="list-disc pl-5 mt-3 text-slate-600 space-y-1">
+                  {t.features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+                <a
+                  href="#go"
+                  className={`mt-5 inline-flex w-full justify-center px-4 py-2.5 rounded-full font-bold ${
+                    t.cta.variant === "solid"
+                      ? "bg-sky-600 hover:bg-sky-700 text-white"
+                      : "border border-slate-200"
+                  }`}
+                >
+                  {t.cta.label}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
+/* =============== footer =============== */
 function FooterLink({ label }) {
   return (
     <a href="#" className="block text-slate-800/80 hover:text-slate-900 mb-1">
@@ -363,8 +353,8 @@ function FooterLink({ label }) {
 
 function Footer() {
   return (
-    <footer className="bg-slate-50 border-t border-slate-200 mt-6">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <footer className="bg-slate-50 border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div>
           <div className="font-extrabold">FraudGuard</div>
           <p className="text-slate-600 mt-1">
@@ -393,30 +383,40 @@ function Footer() {
           <FooterLink label="Privacy" />
         </div>
       </div>
-      <div className="text-center text-slate-600 text-sm py-3 border-t border-slate-200">
+      <div className="text-center text-slate-600 text-sm py-4 border-t border-slate-200">
         © 2025 FraudGuard. All rights reserved.
       </div>
     </footer>
   );
 }
 
+/* =============== app =============== */
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* top notice */}
       <div className="bg-[#eaf6ff] border-b border-slate-200 text-center text-sm font-bold">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-center gap-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-center gap-2">
           <span>Introducing FraudGuard API — Available Now</span>
-          <a href="#api" className="text-sky-600">Try now →</a>
+          <a href="#api" className="text-sky-700 hover:underline">
+            Try now →
+          </a>
         </div>
       </div>
 
       <Header onToggleMenu={() => setMenuOpen((v) => !v)} />
       <MobileMenu open={menuOpen} />
-      <Hero />
-      <Features />
-      <CTA />
-      <Pricing />
+
+      {/* 자연스러운 스크롤: 메인에 별도 높이/스냅 없음 */}
+      <main>
+        <Hero />
+        <Features />
+        <CTA />
+        <Pricing />
+      </main>
+
       <Footer />
     </div>
   );
