@@ -149,21 +149,44 @@ function MobileMenu({ open }) {
 }
 
 function Hero() {
-  const [mode, setMode] = useState("semantic");
+  const [mode, setMode] = useState("semantic"); // 칩 UI 유지(전송 메시지에는 포함 안 함)
   const [query, setQuery] = useState("");
 
-  const handleAnalyze = () => {
-    // 메시지 포맷 (원하는 템플릿으로 바꿔도 됨)
-    const msg = `FraudGuard inquiry\nMode: ${mode}\nText: ${query || "(no input)"}`;
+  const openWhatsApp = () => {
+    const text = query.trim();
+    if (!text) return;
 
-    // 1) .env 에서 링크 우선 사용 (예: https://wa.me/821012345678 또는 https://wa.me/message/XXXX)
-    const base =
-      import.meta.env.VITE_WA_LINK?.trim() ||
-      "https://wa.me/821056211982"; // ← 임시 기본값: 여길 네 번호/단축링크로 바꿔도 됨
+    // 환경변수(권장): VITE_WA_PHONE=821012345678 (숫자만) 또는 VITE_WA_LINK=https://wa.me/message/XXXX
+    const phone = (import.meta.env.VITE_WA_PHONE || "").replace(/\D/g, "");
+    const shortLink = (import.meta.env.VITE_WA_LINK || "").trim();
 
-    const url = `${base}?text=${encodeURIComponent(msg)}`;
+    // 1) 앱 딥링크: 모바일에서 WhatsApp 앱을 바로 시도 (브라우저/OS에 따라 '앱 열기' 팝업이 뜰 수 있음)
+    //   - phone 있으면 특정 챗봇 번호로, 없으면 사용자 선택창
+    const deepLink = phone
+      ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}`
+      : `whatsapp://send?text=${encodeURIComponent(text)}`;
 
-    window.open(url, "_blank", "noopener,noreferrer");
+    // 2) 웹 링크: 딥링크가 차단/무시될 경우를 대비한 웹/앱 자동 라우팅(wa.me)
+    //   - 단축 링크가 있으면 그걸 우선 사용, 없으면 번호 기반/번호 없으면 공용 링크
+    const webLink =
+      shortLink ||
+      (phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`);
+
+    // 우선 deepLink를 새 탭으로 열고, 실패하거나 차단되면 잠시 후 webLink로 폴백
+    let opened = false;
+    try {
+      const w = window.open(deepLink, "_blank", "noopener,noreferrer");
+      if (w) opened = true;
+    } catch (_) {}
+
+    // 일부 브라우저/OS는 deepLink를 무시하거나 앱 미설치 시 실패 → webLink 폴백
+    setTimeout(() => {
+      if (!opened) {
+        window.open(webLink, "_blank", "noopener,noreferrer");
+      }
+    }, 400);
   };
 
   return (
@@ -192,17 +215,25 @@ function Hero() {
           />
           <button
             type="button"
-            onClick={handleAnalyze}
+            onClick={openWhatsApp}
             className="px-5 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-bold"
             disabled={!query.trim()}
-            title={!query.trim() ? "Enter some text first" : "Analyze via WhatsApp"}
+            title={!query.trim() ? "Enter some text first" : "Open WhatsApp"}
           >
             Analyze
           </button>
         </form>
 
+        {/* 칩(모드) UI는 유지하지만 전송 메시지에는 포함하지 않습니다 */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {chips.map((c) => (
+          {[
+            { key: "semantic", label: "Semantic analysis" },
+            { key: "phone", label: "Phone number reports" },
+            { key: "bank", label: "Bank account verification" },
+            { key: "phish", label: "Phishing link detector" },
+            { key: "malware", label: "Malware file scanner" },
+            { key: "api", label: "Business API" },
+          ].map((c) => (
             <button
               key={c.key}
               onClick={() => setMode(c.key)}
@@ -220,6 +251,7 @@ function Hero() {
     </section>
   );
 }
+
 
 
 function Features() {
