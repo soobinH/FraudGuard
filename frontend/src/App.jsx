@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import Hero from "./Hero";
 
 /* =============== data =============== */
 const navItems = [
@@ -195,200 +196,194 @@ function MobileMenu({ open }) {
 }
 
 
-/* =============== hero =============== */
-function Hero() {
-  // chip selection (for UI highlight only)
-  const [mode, setMode] = useState("semantic");
-  // message to send to WhatsApp
-  const [query, setQuery] = useState("");
+// /* =============== hero =============== */
+// function Hero() {
+//   const [mode, setMode] = useState("semantic");
+//   const [query, setQuery] = useState("");
 
-  // --- Auto-grow textarea ---
-  const textRef = useRef(null);
-  const autoGrow = (el) => {
-    if (!el) return;
-    el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 240) + "px"; // up to 240px
-  };
-  useEffect(() => {
-    autoGrow(textRef.current);
-  }, [query]);
+//   // 결과 표시용 상태
+//   const [loading, setLoading] = useState(false);
+//   const [answer, setAnswer] = useState(null);
+//   const [error, setError] = useState("");
 
-  // Example prompts (filled when chips are clicked)
-  const examplePrompts = {
-    semantic:
-      "I got this email saying my account will be closed unless I click a link and verify my information. Is this a scam?",
-    phone:
-      "This phone number +1 (347) 555-0199 keeps calling and asking for my bank details. Is it a scam?",
-    bank:
-      "Someone asked me to transfer a ‘refundable deposit’ to this bank account: 123-456-789. Could this be a scam?",
-    phish:
-      "Is this URL safe or a phishing attempt? http://bit.ly/secure-account-verify",
-    malware:
-      "A stranger sent me a file named invoice_update.apk and told me to install it to view the invoice. Is it malware?",
-    api:
-      "A vendor wants API access and asked me to paste my API key into a Google Form. Is that a scam practice?",
-  };
+//   // --- Auto-grow textarea ---
+//   const textRef = useRef(null);
+//   const autoGrow = (el) => {
+//     if (!el) return;
+//     el.style.height = "0px";
+//     el.style.height = Math.min(el.scrollHeight, 240) + "px";
+//   };
+//   useEffect(() => { autoGrow(textRef.current); }, [query]);
 
-  // WhatsApp deep link + fallback to wa.me
-  const openWhatsApp = () => {
-    const text = query.trim();
-    if (!text) return;
+//   const examplePrompts = {
+//     semantic: "I got this email saying my account will be closed unless I click a link and verify my information. Is this a scam?",
+//     phone: "This phone number +1 (347) 555-0199 keeps calling and asking for my bank details. Is it a scam?",
+//     bank: "Someone asked me to transfer a ‘refundable deposit’ to this bank account: 123-456-789. Could this be a scam?",
+//     phish: "Is this URL safe or a phishing attempt? http://bit.ly/secure-account-verify",
+//     malware: "A stranger sent me a file named invoice_update.apk and told me to install it to view the invoice. Is it malware?",
+//     api: "A vendor wants API access and asked me to paste my API key into a Google Form. Is that a scam practice?",
+//   };
 
-    const phone = (import.meta.env.VITE_WA_PHONE || "").replace(/\D/g, "");
-    const shortLink = (import.meta.env.VITE_WA_LINK || "").trim();
+//   const fillExample = (key) => {
+//     setMode(key);
+//     const text = examplePrompts[key] || "";
+//     setQuery(text);
+//     requestAnimationFrame(() => autoGrow(textRef.current));
+//   };
 
-    const deepLink = phone
-      ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}`
-      : `whatsapp://send?text=${encodeURIComponent(text)}`;
+//   // ✅ n8n 호출
+//   const onSubmit = async (e) => {
+//     e.preventDefault();
+//     const text = query.trim();
+//     if (!text) return;
 
-    const webLink =
-      shortLink ||
-      (phone
-        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-        : `https://wa.me/?text=${encodeURIComponent(text)}`);
+//     setLoading(true);
+//     setError("");
+//     setAnswer(null);
 
-    let opened = false;
-    try {
-      const w = window.open(deepLink, "_blank", "noopener,noreferrer");
-      if (w) opened = true;
-    } catch {}
-    setTimeout(() => {
-      if (!opened) window.open(webLink, "_blank", "noopener,noreferrer");
-    }, 400);
-  };
+//     try {
+//       const data = await analyzeFraud(text);
+//       setAnswer(data);
+//     } catch (err) {
+//       setError(err?.message || "Request failed");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-    openWhatsApp();
-  };
+//   return (
+//     <section className="
+//         relative isolate overflow-hidden
+//         bg-gradient-to-b from-sky-300 via-sky-100 to-white
+//         min-h-[100svh] flex items-center py-0
+//       "
+//     >
+//       <div className="
+//           pointer-events-none absolute inset-0
+//           [mask-image:radial-gradient(60%_60%_at_50%_-30%,#000_40%,transparent_100%)]
+//           bg-[radial-gradient(80%_60%_at_50%_-50%,rgba(255,255,255,0.75)_0%,rgba(255,255,255,0)_60%)]
+//         "
+//       />
 
-  // Fill textarea with an example when a chip is clicked
-  const fillExample = (key) => {
-    setMode(key);
-    const text = examplePrompts[key] || "";
-    setQuery(text);
-    requestAnimationFrame(() => autoGrow(textRef.current));
-  };
+//       <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6">
+//         <div className="w-full text-center">
+//           <h1 className="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
+//             Meet your first AI fraud detective
+//           </h1>
 
-  return (
-    <section
-      className="
-        relative isolate overflow-hidden
-        bg-gradient-to-b from-sky-300 via-sky-100 to-white
-        min-h-[100svh] flex items-center py-0
-      "
-    >
-      {/* soft highlight lifted upward so gradient reaches under header */}
-      <div
-        className="
-          pointer-events-none absolute inset-0
-          [mask-image:radial-gradient(60%_60%_at_50%_-30%,#000_40%,transparent_100%)]
-          bg-[radial-gradient(80%_60%_at_50%_-50%,rgba(255,255,255,0.75)_0%,rgba(255,255,255,0)_60%)]
-        "
-      />
+//           <p className="mx-auto mt-4 max-w-3xl text-base sm:text-lg text-slate-800/85">
+//             Detect, analyze, and prevent fraud with a clean, fast, and privacy-friendly toolkit.
+//           </p>
 
-      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="w-full text-center">
-          <h1 className="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
-            Meet your first AI fraud detective
-          </h1>
+//           {/* Lindy-style prompt card */}
+//           <form
+//             onSubmit={onSubmit}
+//             className="
+//               relative mx-auto mt-8 w-full max-w-4xl
+//               rounded-[22px] bg-white ring-1 ring-black/5
+//               shadow-[0_10px_30px_rgba(17,24,39,0.08),0_25px_60px_rgba(253,216,155,0.18)]
+//               p-4 sm:p-5
+//             "
+//             aria-label="Fraud analysis input"
+//           >
+//             <div className="relative">
+//               <span className="pointer-events-none absolute left-3 top-3 text-slate-400">🔍</span>
 
-          <p className="mx-auto mt-4 max-w-3xl text-base sm:text-lg text-slate-800/85">
-            Detect, analyze, and prevent fraud with a clean, fast, and privacy-friendly toolkit.
-          </p>
+//               <textarea
+//                 ref={textRef}
+//                 rows={3}
+//                 className="
+//                   block w-full resize-none bg-transparent outline-none
+//                   text-[15px] sm:text-[16px] leading-6 sm:leading-7
+//                   placeholder:text-slate-400 text-slate-900
+//                   rounded-xl pr-16 pl-12 sm:pl-14 py-2.5
+//                   min-h-[100px] sm:min-h-[100px]
+//                 "
+//                 placeholder="How can I help? Describe your agent and I’ll build it."
+//                 aria-label="Describe a suspicious item"
+//                 value={query}
+//                 onChange={(e) => { setQuery(e.target.value); autoGrow(e.target); }}
+//               />
 
-          {/* Lindy-style prompt card */}
-          <form
-            onSubmit={onSubmit}
-            className="
-              relative mx-auto mt-8 w-full max-w-4xl
-              rounded-[22px] bg-white ring-1 ring-black/5
-              shadow-[0_10px_30px_rgba(17,24,39,0.08),0_25px_60px_rgba(253,216,155,0.18)]
-              p-4 sm:p-5
-            "
-            aria-label="Fraud analysis input"
-          >
-            <div className="relative">
-              {/* 아이콘 위치를 살짝 오른쪽/아래로 */}
-              <span className="pointer-events-none absolute left-3 top-3 text-slate-400">
-                🔍
-              </span>
+//               {/* 원형 전송 버튼 -> 로딩 스피너 표시 */}
+//               <button
+//                 type="submit"
+//                 className="
+//                   absolute right-1.5 bottom-1.5
+//                   inline-flex h-10 w-10 items-center justify-center
+//                   rounded-full bg-[#88A8FF] text-white shadow-md
+//                   hover:brightness-105 active:brightness-95 transition
+//                   disabled:opacity-50 disabled:cursor-not-allowed
+//                 "
+//                 aria-label="Send"
+//                 disabled={!query.trim() || loading}
+//                 title={!query.trim() ? "Enter some text first" : "Analyze"}
+//               >
+//                 {loading ? (
+//                   <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
+//                     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+//                     <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="2" />
+//                   </svg>
+//                 ) : (
+//                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="translate-y-[1px]">
+//                     <path d="M12 5l6 6M12 5L6 11M12 5v14"
+//                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+//                   </svg>
+//                 )}
+//               </button>
+//             </div>
+//           </form>
 
-              <textarea
-                ref={textRef}
-                rows={3}
-                className="
-                  block w-full resize-none bg-transparent outline-none
-                  text-[15px] sm:text-[16px] leading-6 sm:leading-7
-                  placeholder:text-slate-400 text-slate-900
-                  rounded-xl pr-16 pl-12 sm:pl-14 py-2.5   /* <- pl-8 을 pl-12 / sm:pl-14 로 변경 */
-                  min-h-[100px] sm:min-h-[100px]
-                "
-                placeholder="How can I help? Describe your agent and I’ll build it."
-                aria-label="Describe a suspicious item"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  autoGrow(e.target);
-                }}
-              />
+//           {/* 결과 / 에러 출력 */}
+//           {error && (
+//             <div className="mx-auto mt-4 max-w-4xl text-red-600 text-sm">
+//               Error: {error}
+//             </div>
+//           )}
 
-              {/* 전송 버튼 그대로 */}
-              <button
-                type="submit"
-                className="
-                  absolute right-1.5 bottom-1.5
-                  inline-flex h-10 w-10 items-center justify-center
-                  rounded-full bg-[#88A8FF] text-white shadow-md
-                  hover:brightness-105 active:brightness-95 transition
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                "
-                aria-label="Send"
-                disabled={!query.trim()}
-                title={!query.trim() ? 'Enter some text first' : 'Open WhatsApp'}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="translate-y-[1px]">
-                  <path d="M12 5l6 6M12 5L6 11M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
+//           {answer && (
+//             <div className="mx-auto mt-4 max-w-4xl text-left">
+//               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+//                 {/* 응답이 객체면 예쁘게, 문자열이면 그대로 */}
+//                 {typeof answer === "string" ? (
+//                   <pre className="whitespace-pre-wrap text-slate-800">{answer}</pre>
+//                 ) : (
+//                   <pre className="text-slate-800 overflow-auto">{JSON.stringify(answer, null, 2)}</pre>
+//                 )}
+//               </div>
+//             </div>
+//           )}
 
-          </form>
-
-          <p className="mt-2 text-sm text-slate-800/80 italic">
-            * Analyze button will open up FraudGuard&apos;s Whatsapp Chatbot
-          </p>
-
-          {/* Example chips (fill textarea with prompts) */}
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {[
-              { key: "semantic", label: "Semantic analysis" },
-              { key: "phone", label: "Phone number reports" },
-              { key: "bank", label: "Bank account verification" },
-              { key: "phish", label: "Phishing link detector" },
-              { key: "malware", label: "Malware file scanner" },
-              { key: "api", label: "Business API" },
-            ].map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => fillExample(c.key)}
-                className={`px-3.5 py-2 rounded-full border text-sm font-semibold transition-colors shadow-sm ${
-                  mode === c.key
-                    ? "bg-sky-700 border-sky-700 text-white"
-                    : "bg-white/80 border-white/70 text-slate-900 hover:bg-white"
-                }`}
-                aria-pressed={mode === c.key}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+//           {/* 예시 칩 */}
+//           <div className="mt-6 flex flex-wrap justify-center gap-2">
+//             {[
+//               { key: "semantic", label: "Semantic analysis" },
+//               { key: "phone", label: "Phone number reports" },
+//               { key: "bank", label: "Bank account verification" },
+//               { key: "phish", label: "Phishing link detector" },
+//               { key: "malware", label: "Malware file scanner" },
+//               { key: "api", label: "Business API" },
+//             ].map((c) => (
+//               <button
+//                 key={c.key}
+//                 type="button"
+//                 onClick={() => fillExample(c.key)}
+//                 className={`px-3.5 py-2 rounded-full border text-sm font-semibold transition-colors shadow-sm ${
+//                   mode === c.key
+//                     ? "bg-sky-700 border-sky-700 text-white"
+//                     : "bg-white/80 border-white/70 text-slate-900 hover:bg-white"
+//                 }`}
+//                 aria-pressed={mode === c.key}
+//               >
+//                 {c.label}
+//               </button>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
 
 
 
