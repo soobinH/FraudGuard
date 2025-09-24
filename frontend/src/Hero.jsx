@@ -1,23 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 
 export default function Hero() {
-  /* ---------- 상태 ---------- */
-  const [mode, setMode] = useState("semantic");     // 예시 칩 하이라이트용
-  const [input, setInput] = useState("");           // 텍스트 입력
-  const [file, setFile] = useState(null);           // 첨부 이미지(1개)
-  const [previewURL, setPreviewURL] = useState(""); // 현재 선택한 이미지 미리보기
-  const fileInputRef = useRef(null);                // 같은 파일 재선택 가능하게 리셋용
+  /* ---------- state ---------- */
+  const [mode, setMode] = useState("semantic");
+  const [input, setInput] = useState("");
+  const [file, setFile] = useState(null);
+  const [previewURL, setPreviewURL] = useState("");
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
   const [messages, setMessages] = useState([
     {
       role: "assistant",
       content:
-        "Hi! Paste a suspicious message, phone number or link and I’ll analyze whether it’s a scam.",
+        "Hi! Paste a suspicious message, phone number, or link and I’ll analyze whether it’s a scam.\n\n💡 You can also click one of the example buttons below to get started.",
     },
   ]);
 
-  /* ---------- 예시 프롬프트 ---------- */
+  /* ---------- examples ---------- */
   const examples = {
     semantic:
       "I got this email saying my account will be closed unless I click a link and verify my information. Is this a scam?",
@@ -37,8 +37,7 @@ export default function Hero() {
     setInput(examples[key] || "");
   };
 
-  /* ---------- 썸네일 & URL 메모리 관리 ---------- */
-  // 여러 이미지 메시지에서 생성한 object URL들을 모아 두었다가 컴포넌트 unmount 시 정리
+  /* ---------- object URL lifecycle ---------- */
   const createdUrlsRef = useRef(new Set());
 
   useEffect(() => {
@@ -49,32 +48,30 @@ export default function Hero() {
     }
     const url = URL.createObjectURL(file);
     setPreviewURL(url);
-    // 현재 미리보기 URL은 전송 전에만 사용하므로 여기선 정리
     return () => URL.revokeObjectURL(url);
-  }, [file]);
+  }, [file]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => {
-      // 언마운트 시 지금까지 만든 모든 object URL 정리
       createdUrlsRef.current.forEach((u) => {
-        try { URL.revokeObjectURL(u); } catch {}
+        try {
+          URL.revokeObjectURL(u);
+        } catch {}
       });
       createdUrlsRef.current.clear();
     };
   }, []);
 
-  /* ---------- n8n 엔드포인트 ---------- */
-  // 텍스트 GET (서버에서 CORS 허용 필요)
+  /* ---------- n8n endpoints ---------- */
   const N8N_TEXT_GET =
     import.meta.env.VITE_N8N_WEBHOOK_URL ||
     "https://n8n.vtriadi.site/webhook/b2a306fa-3a35-4c34-8009-1ee5b4130761";
 
-  // 이미지 POST (Function 노드에서 binary.image 사용)
   const N8N_IMAGE_POST =
+    import.meta.env.VITE_N8N_IMAGE_WEBHOOK_URL ||
     "https://n8n.vtriadi.site/webhook/b4cba643-d1b2-46dd-a467-e08b19eb0b5e";
 
-  /* ---------- 호출 함수들 ---------- */
-  // 텍스트: GET ?chatinput=...
+  /* ---------- calls ---------- */
   const callN8nGet = async (message) => {
     const url = `${N8N_TEXT_GET}?${new URLSearchParams({ chatinput: message })}`;
     const res = await fetch(url, { method: "GET" });
@@ -85,7 +82,6 @@ export default function Hero() {
     const ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const data = await res.json().catch(() => ({}));
-      // 응답은 텍스트처럼 보여줄 것이므로 reply > output > stringify 순으로 변환
       if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
       if (typeof data?.output === "string" && data.output.trim()) return data.output;
       return JSON.stringify(data, null, 2);
@@ -93,45 +89,31 @@ export default function Hero() {
     return await res.text();
   };
 
-  // 이미지: POST multipart/form-data (키: image) → 결과는 "텍스트"로 반환받아 채팅에 표시
   const callN8nPostImage = async (imageFile) => {
     const fd = new FormData();
-    fd.append("image", imageFile, imageFile.name);
-
-    const res = await fetch(N8N_IMAGE_POST, {
-      method: "POST",
-      body: fd,
-      mode: "cors",
-    });
-
+    fd.append("image", imageFile, imageFile.name); // Function node expects binary.image
+    const res = await fetch(N8N_IMAGE_POST, { method: "POST", body: fd, mode: "cors" });
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
     }
-
     const ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const data = await res.json().catch(() => ({}));
-      // 서버에서 결과 텍스트를 reply/output로 내려준다면 우선 사용
       if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
       if (typeof data?.output === "string" && data.output.trim()) return data.output;
-      // 아니면 JSON을 문자열로
       return JSON.stringify(data, null, 2);
     }
-    // text/plain 등은 그대로
     return await res.text();
   };
 
-  /* ---------- 전송 ---------- */
+  /* ---------- send ---------- */
   const sendText = async (text) => {
     if (!text.trim() || loading) return;
-
-    // 유저 텍스트 메시지 표시
     setMessages((prev) => [...prev, { role: "user", content: text.trim() }]);
     setInput("");
     setLoading(true);
 
-    // 타이핑 버블
     const typingId = Symbol("typing");
     setMessages((prev) => [...prev, { role: "assistant", typing: true, id: typingId }]);
 
@@ -162,25 +144,15 @@ export default function Hero() {
   const sendImage = async (imageFile) => {
     if (!imageFile || loading) return;
 
-    // 이 메시지에서 사용할 전용 object URL (전송 후에도 채팅에 썸네일 유지)
     const bubbleUrl = URL.createObjectURL(imageFile);
     createdUrlsRef.current.add(bubbleUrl);
 
-    // 유저 이미지 메시지를 "썸네일"로 버블에 표시
     setMessages((prev) => [
       ...prev,
-      {
-        role: "user",
-        type: "image",
-        url: bubbleUrl,
-        name: imageFile.name,
-        size: imageFile.size,
-      },
+      { role: "user", type: "image", url: bubbleUrl, name: imageFile.name, size: imageFile.size },
     ]);
 
-    // 다음 메시지에 자동으로 첨부되지 않도록 즉시 초기화
     setFile(null);
-    // 같은 파일을 다시 선택해도 onChange가 동작하도록 input value 리셋
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     setLoading(true);
@@ -189,7 +161,6 @@ export default function Hero() {
 
     try {
       const out = await callN8nPostImage(imageFile);
-      // 서버 결과를 텍스트로 동일하게 표시
       setMessages((prev) =>
         prev.map((m) => (m.id === typingId ? { role: "assistant", content: out } : m))
       );
@@ -209,24 +180,23 @@ export default function Hero() {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    if (file) return sendImage(file);   // 파일 있으면 이미지만 전송
-    return sendText(input);             // 없으면 텍스트 전송
+    if (file) return sendImage(file);
+    return sendText(input);
   };
 
-  /* ---------- 자동 스크롤 ---------- */
+  /* ---------- autoscroll ---------- */
   const listRef = useRef(null);
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
-  /* ---------- 파일 선택/삭제 ---------- */
+  /* ---------- file pick/clear ---------- */
   const onPickFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) {
       alert("Please select an image file.");
-      // 같은 파일 재선택 대비 리셋
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -240,15 +210,21 @@ export default function Hero() {
   const fmtKB = (b) => `${Math.round(b / 102.4) / 10} KB`;
 
   /* ---------- UI ---------- */
+  const canSend = !loading && (file || input.trim());
+
   return (
     <section
       className="
         relative isolate overflow-hidden
         bg-gradient-to-b from-sky-300 via-sky-100 to-white
-        min-h-[100svh] py-0 flex items-center
+        min-h-[100svh]
+        pt-24 sm:pt-32
+        pb-8 sm:pb-12
+        flex items-start sm:items-center
+        scroll-mt-24
       "
     >
-      {/* 배경 하이라이트 */}
+      {/* background highlight */}
       <div
         className="
           pointer-events-none absolute inset-0
@@ -257,7 +233,7 @@ export default function Hero() {
         "
       />
 
-      {/* 스크롤바 스타일 */}
+      {/* scrollbar style */}
       <style>{`
         .nice-scrollbar { scrollbar-width: thin; scrollbar-color: #c7d2fe #f8fafc; }
         .nice-scrollbar::-webkit-scrollbar { width: 10px; }
@@ -267,31 +243,33 @@ export default function Hero() {
       `}</style>
 
       <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-6">
-        {/* 타이틀 */}
+        {/* title */}
         <div className="text-center">
-          <h1 className="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
-            Your AI fraud detective
+          <h1 className="mt-2 sm:mt-6 text-[30px] sm:text-6xl font-black tracking-tight text-slate-900">
+            Your AI Fraud Detective
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-800/85">
+          <p className="mx-auto mt-3 sm:mt-4 max-w-2xl text-[15px] sm:text-base text-slate-800/85">
             Ask about suspicious messages, numbers, links, or files. I’ll help you decide if it’s a scam.
           </p>
         </div>
 
-        {/* Chat 카드 */}
+        {/* chat card */}
         <div
           className="
-            relative mx-auto mt-8 w-full max-w-4xl
-            rounded-[22px] bg-white ring-1 ring-black/5
+            relative mx-auto mt-7 sm:mt-9 w-full max-w-4xl
+            rounded-[22px]
+            bg-white/90 supports-[backdrop-filter]:bg-white/70 backdrop-blur
+            ring-1 ring-black/5
             shadow-[0_10px_30px_rgba(17,24,39,0.08),0_25px_60px_rgba(253,216,155,0.18)]
             overflow-hidden
           "
         >
-          {/* 메시지 리스트 */}
+          {/* messages */}
           <div
             ref={listRef}
             className="
               nice-scrollbar
-              max-h-[48vh] sm:max-h-[56vh]
+              max-h-[52vh] sm:max-h-[60vh]
               overflow-y-auto px-4 sm:px-5 py-4 space-y-4 scroll-smooth
             "
           >
@@ -303,7 +281,6 @@ export default function Hero() {
 
               return (
                 <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                  {/* 어시스턴트 아바타 */}
                   {!isUser && (
                     <div className="mr-2 mt-0.5 hidden sm:block">
                       <div className="h-8 w-8 rounded-full bg-sky-600 text-white grid place-items-center text-xs font-bold">
@@ -312,7 +289,6 @@ export default function Hero() {
                     </div>
                   )}
 
-                  {/* 버블 */}
                   <div
                     className={[
                       "max-w-[82%] sm:max-w-[75%] rounded-2xl px-3 py-2.5 text-[15px] leading-6",
@@ -332,7 +308,6 @@ export default function Hero() {
                     ) : isImage ? (
                       <div>
                         <div className="rounded-lg overflow-hidden ring-1 ring-slate-200 mb-2 bg-white">
-                          {/* 보낸 이미지 썸네일 */}
                           <img
                             src={m.url}
                             alt={m.name || "image"}
@@ -350,7 +325,6 @@ export default function Hero() {
                     )}
                   </div>
 
-                  {/* 유저 아바타 */}
                   {isUser && (
                     <div className="ml-2 mt-0.5 hidden sm:block">
                       <div className="h-8 w-8 rounded-full bg-slate-300 text-slate-700 grid place-items-center text-xs font-bold">
@@ -363,10 +337,9 @@ export default function Hero() {
             })}
           </div>
 
-          {/* 입력 바 */}
+          {/* input bar */}
           <form onSubmit={onSubmit} className="border-t border-slate-200/80">
             <div className="p-3 sm:p-4 space-y-3">
-              {/* 첨부 배지 (선택 시 표시) */}
               {file && (
                 <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <div className="h-8 w-8 rounded-md overflow-hidden bg-slate-200 ring-1 ring-slate-200">
@@ -389,18 +362,24 @@ export default function Hero() {
                 </div>
               )}
 
-              {/* 입력 + 첨부 + 전송 */}
               <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onPickFile}
-                  />
-                  <span>📎 Attach</span>
-                </label>
+                {/* + attach button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
+                  title="Attach image"
+                  aria-label="Attach image"
+                >
+                  <span className="text-xl leading-none">+</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickFile}
+                />
 
                 <textarea
                   rows={2}
@@ -421,28 +400,30 @@ export default function Hero() {
                   "
                   placeholder={
                     file
-                      ? "Image will be sent (text ignored while an image is attached)…"
-                      : "Type your message… (Shift+Enter for new line)"
+                      ? "An image is attached — the next message will send the image."
+                      : "Type your message… (Shift+Enter for a new line)"
                   }
                 />
 
-                {/* 전송 버튼 (textarea 바깥) */}
+                {/* Send button (deeper blue when sendable) */}
                 <button
                   type="submit"
-                  disabled={loading || (!file && !input.trim())}
-                  className="
-                    inline-flex h-11 px-5 items-center justify-center
-                    rounded-full bg-[#88A8FF] text-white font-semibold
-                    shadow-md hover:brightness-105 active:brightness-95
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  "
+                  disabled={!canSend}
+                  className={[
+                    "inline-flex h-11 px-5 items-center justify-center rounded-full font-semibold transition",
+                    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-400",
+                    "disabled:opacity-60 disabled:cursor-not-allowed",
+                    canSend
+                      ? "bg-sky-600 text-white hover:bg-sky-700 active:bg-sky-800 shadow-[0_8px_24px_rgba(2,132,199,0.28)]"
+                      : "bg-sky-300 text-white"
+                  ].join(" ")}
                   title={file ? "Send image" : "Send message"}
+                  aria-label="Send"
                 >
                   {loading ? "…" : "Send"}
                 </button>
               </div>
 
-              {/* 안내 문구 */}
               <p className="text-xs text-slate-500 text-right">
                 {loading
                   ? "Uploading/Analyzing… this may take up to ~30 seconds."
@@ -452,8 +433,13 @@ export default function Hero() {
           </form>
         </div>
 
-        {/* 예시 칩 */}
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {/* hint above examples */}
+        <p className="mt-3 text-center text-sm text-slate-600">
+          💡 New here? Click an <span className="font-semibold">example button</span> below to get started.
+        </p>
+
+        {/* example chips */}
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
           {[
             { key: "semantic", label: "Email looks suspicious" },
             { key: "phone", label: "Phone number asks for bank info" },
@@ -468,9 +454,11 @@ export default function Hero() {
               onClick={() => fillExample(c.key)}
               className={`
                 px-3.5 py-2 rounded-full border text-sm font-semibold transition-colors shadow-sm
-                ${mode === c.key
-                  ? "bg-sky-700 border-sky-700 text-white"
-                  : "bg-white/80 border-white/70 text-slate-900 hover:bg-white"}
+                ${
+                  mode === c.key
+                    ? "bg-sky-700 border-sky-700 text-white"
+                    : "bg-white/80 border-white/70 text-slate-900 hover:bg-white"
+                }
               `}
               aria-pressed={mode === c.key}
               title="Fill example prompt"
