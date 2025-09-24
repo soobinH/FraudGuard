@@ -2,9 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 
 export default function Hero() {
   /* ---------- 상태 ---------- */
-  const [mode, setMode] = useState("semantic");   // 칩 하이라이트용
-  const [input, setInput] = useState("");         // 입력창
+  const [mode, setMode] = useState("semantic");     // 예시 칩 하이라이트용
+  const [input, setInput] = useState("");           // 텍스트 입력
+  const [file, setFile] = useState(null);           // 첨부 이미지(1개)
+  const [previewURL, setPreviewURL] = useState(""); // 현재 선택한 이미지 미리보기
+  const fileInputRef = useRef(null);                // 같은 파일 재선택 가능하게 리셋용
   const [loading, setLoading] = useState(false);
+
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -33,59 +37,108 @@ export default function Hero() {
     setInput(examples[key] || "");
   };
 
-  /* ---------- n8n 호출 (GET, ?chatinput=...) ---------- */
-  const N8N_BASE =
+  /* ---------- 썸네일 & URL 메모리 관리 ---------- */
+  // 여러 이미지 메시지에서 생성한 object URL들을 모아 두었다가 컴포넌트 unmount 시 정리
+  const createdUrlsRef = useRef(new Set());
+
+  useEffect(() => {
+    if (!file) {
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      setPreviewURL("");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewURL(url);
+    // 현재 미리보기 URL은 전송 전에만 사용하므로 여기선 정리
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    return () => {
+      // 언마운트 시 지금까지 만든 모든 object URL 정리
+      createdUrlsRef.current.forEach((u) => {
+        try { URL.revokeObjectURL(u); } catch {}
+      });
+      createdUrlsRef.current.clear();
+    };
+  }, []);
+
+  /* ---------- n8n 엔드포인트 ---------- */
+  // 텍스트 GET (서버에서 CORS 허용 필요)
+  const N8N_TEXT_GET =
     import.meta.env.VITE_N8N_WEBHOOK_URL ||
     "https://n8n.vtriadi.site/webhook/b2a306fa-3a35-4c34-8009-1ee5b4130761";
 
+  // 이미지 POST (Function 노드에서 binary.image 사용)
+  const N8N_IMAGE_POST =
+    "https://n8n.vtriadi.site/webhook/b4cba643-d1b2-46dd-a467-e08b19eb0b5e";
+
+  /* ---------- 호출 함수들 ---------- */
+  // 텍스트: GET ?chatinput=...
   const callN8nGet = async (message) => {
-    const url = `${N8N_BASE}?${new URLSearchParams({ chatinput: message })}`;
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 60_000);
-
-    try {
-      const res = await fetch(url, { method: "GET", signal: ctrl.signal });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
-      }
-
-      // JSON 응답이면 reply → output → 그 외 순으로 사용
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) {
-        const data = await res.json().catch(() => ({}));
-        if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
-        if (typeof data?.output === "string" && data.output.trim()) return data.output;
-        return JSON.stringify(data, null, 2);
-      }
-
-      // text/plain 등은 그대로
-      return await res.text();
-    } finally {
-      clearTimeout(t);
+    const url = `${N8N_TEXT_GET}?${new URLSearchParams({ chatinput: message })}`;
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
     }
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      const data = await res.json().catch(() => ({}));
+      // 응답은 텍스트처럼 보여줄 것이므로 reply > output > stringify 순으로 변환
+      if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
+      if (typeof data?.output === "string" && data.output.trim()) return data.output;
+      return JSON.stringify(data, null, 2);
+    }
+    return await res.text();
+  };
+
+  // 이미지: POST multipart/form-data (키: image) → 결과는 "텍스트"로 반환받아 채팅에 표시
+  const callN8nPostImage = async (imageFile) => {
+    const fd = new FormData();
+    fd.append("image", imageFile, imageFile.name);
+
+    const res = await fetch(N8N_IMAGE_POST, {
+      method: "POST",
+      body: fd,
+      mode: "cors",
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
+    }
+
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      const data = await res.json().catch(() => ({}));
+      // 서버에서 결과 텍스트를 reply/output로 내려준다면 우선 사용
+      if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
+      if (typeof data?.output === "string" && data.output.trim()) return data.output;
+      // 아니면 JSON을 문자열로
+      return JSON.stringify(data, null, 2);
+    }
+    // text/plain 등은 그대로
+    return await res.text();
   };
 
   /* ---------- 전송 ---------- */
-  const sendMessage = async (text) => {
+  const sendText = async (text) => {
     if (!text.trim() || loading) return;
 
-    // 유저 메시지 추가
+    // 유저 텍스트 메시지 표시
     setMessages((prev) => [...prev, { role: "user", content: text.trim() }]);
     setInput("");
     setLoading(true);
 
-    // 타이핑 자리(placeholder) 추가
+    // 타이핑 버블
     const typingId = Symbol("typing");
     setMessages((prev) => [...prev, { role: "assistant", typing: true, id: typingId }]);
 
     try {
       const out = await callN8nGet(text.trim());
-      // 타이핑 버블을 실제 응답으로 교체
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === typingId ? { role: "assistant", content: out } : m
-        )
+        prev.map((m) => (m.id === typingId ? { role: "assistant", content: out } : m))
       );
     } catch (err) {
       setMessages((prev) =>
@@ -93,9 +146,9 @@ export default function Hero() {
           m.id === typingId
             ? {
                 role: "assistant",
+                error: true,
                 content:
                   "Sorry, I couldn’t reach the analyzer. If this keeps happening, check the webhook URL and CORS.",
-                error: true,
               }
             : m
         )
@@ -106,10 +159,58 @@ export default function Hero() {
     }
   };
 
-  /* ---------- 입력 Submit ---------- */
+  const sendImage = async (imageFile) => {
+    if (!imageFile || loading) return;
+
+    // 이 메시지에서 사용할 전용 object URL (전송 후에도 채팅에 썸네일 유지)
+    const bubbleUrl = URL.createObjectURL(imageFile);
+    createdUrlsRef.current.add(bubbleUrl);
+
+    // 유저 이미지 메시지를 "썸네일"로 버블에 표시
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        type: "image",
+        url: bubbleUrl,
+        name: imageFile.name,
+        size: imageFile.size,
+      },
+    ]);
+
+    // 다음 메시지에 자동으로 첨부되지 않도록 즉시 초기화
+    setFile(null);
+    // 같은 파일을 다시 선택해도 onChange가 동작하도록 input value 리셋
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    setLoading(true);
+    const typingId = Symbol("typing");
+    setMessages((prev) => [...prev, { role: "assistant", typing: true, id: typingId }]);
+
+    try {
+      const out = await callN8nPostImage(imageFile);
+      // 서버 결과를 텍스트로 동일하게 표시
+      setMessages((prev) =>
+        prev.map((m) => (m.id === typingId ? { role: "assistant", content: out } : m))
+      );
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === typingId
+            ? { role: "assistant", error: true, content: "Upload failed. Please try again." }
+            : m
+        )
+      );
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onSubmit = (e) => {
     e.preventDefault();
-    sendMessage(input);
+    if (file) return sendImage(file);   // 파일 있으면 이미지만 전송
+    return sendText(input);             // 없으면 텍스트 전송
   };
 
   /* ---------- 자동 스크롤 ---------- */
@@ -119,16 +220,35 @@ export default function Hero() {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
+  /* ---------- 파일 선택/삭제 ---------- */
+  const onPickFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      // 같은 파일 재선택 대비 리셋
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setFile(f);
+  };
+  const clearFile = () => {
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const fmtKB = (b) => `${Math.round(b / 102.4) / 10} KB`;
+
+  /* ---------- UI ---------- */
   return (
     <section
       className="
         relative isolate overflow-hidden
         bg-gradient-to-b from-sky-300 via-sky-100 to-white
-        min-h-[100svh] py-0
-        flex items-center
+        min-h-[100svh] py-0 flex items-center
       "
     >
-      {/* 상단 하이라이트 */}
+      {/* 배경 하이라이트 */}
       <div
         className="
           pointer-events-none absolute inset-0
@@ -137,31 +257,17 @@ export default function Hero() {
         "
       />
 
-      {/* 스크롤바 스타일 (컨테이너 내부 전용) */}
+      {/* 스크롤바 스타일 */}
       <style>{`
-        .nice-scrollbar {
-          scrollbar-width: thin;               /* Firefox */
-          scrollbar-color: #c7d2fe #f8fafc;    /* thumb color / track color */
-        }
-        .nice-scrollbar::-webkit-scrollbar {
-          width: 10px;
-        }
-        .nice-scrollbar::-webkit-scrollbar-track {
-          background: #f8fafc;                 /* slate-50 */
-          border-radius: 9999px;
-        }
-        .nice-scrollbar::-webkit-scrollbar-thumb {
-          background: #c7d2fe;                 /* indigo-200-ish */
-          border-radius: 9999px;
-          border: 3px solid #f8fafc;
-        }
-        .nice-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #a5b4fc;                 /* indigo-300-ish */
-        }
+        .nice-scrollbar { scrollbar-width: thin; scrollbar-color: #c7d2fe #f8fafc; }
+        .nice-scrollbar::-webkit-scrollbar { width: 10px; }
+        .nice-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 9999px; }
+        .nice-scrollbar::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 9999px; border: 3px solid #f8fafc; }
+        .nice-scrollbar::-webkit-scrollbar-thumb:hover { background: #a5b4fc; }
       `}</style>
 
       <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-6">
-        {/* 상단 타이틀 영역 */}
+        {/* 타이틀 */}
         <div className="text-center">
           <h1 className="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
             Your AI fraud detective
@@ -171,7 +277,7 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* Chat 컨테이너 */}
+        {/* Chat 카드 */}
         <div
           className="
             relative mx-auto mt-8 w-full max-w-4xl
@@ -193,10 +299,11 @@ export default function Hero() {
               const isUser = m.role === "user";
               const isError = m.error;
               const isTyping = m.typing;
+              const isImage = m.type === "image";
 
               return (
                 <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                  {/* 아바타 (어시스턴트만) */}
+                  {/* 어시스턴트 아바타 */}
                   {!isUser && (
                     <div className="mr-2 mt-0.5 hidden sm:block">
                       <div className="h-8 w-8 rounded-full bg-sky-600 text-white grid place-items-center text-xs font-bold">
@@ -208,7 +315,7 @@ export default function Hero() {
                   {/* 버블 */}
                   <div
                     className={[
-                      "max-w-[82%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-[15px] leading-6",
+                      "max-w-[82%] sm:max-w-[75%] rounded-2xl px-3 py-2.5 text-[15px] leading-6",
                       isUser
                         ? "bg-sky-600 text-white rounded-br-sm"
                         : isError
@@ -222,6 +329,20 @@ export default function Hero() {
                         <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
                         <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
                       </span>
+                    ) : isImage ? (
+                      <div>
+                        <div className="rounded-lg overflow-hidden ring-1 ring-slate-200 mb-2 bg-white">
+                          {/* 보낸 이미지 썸네일 */}
+                          <img
+                            src={m.url}
+                            alt={m.name || "image"}
+                            className="max-h-64 object-contain bg-white"
+                          />
+                        </div>
+                        <div className={isUser ? "opacity-90 text-white/90" : "text-slate-600"}>
+                          {m.name} • {fmtKB(m.size)}
+                        </div>
+                      </div>
                     ) : typeof m.content === "string" ? (
                       <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
                     ) : (
@@ -229,7 +350,7 @@ export default function Hero() {
                     )}
                   </div>
 
-                  {/* 아바타 (유저만) */}
+                  {/* 유저 아바타 */}
                   {isUser && (
                     <div className="ml-2 mt-0.5 hidden sm:block">
                       <div className="h-8 w-8 rounded-full bg-slate-300 text-slate-700 grid place-items-center text-xs font-bold">
@@ -244,65 +365,94 @@ export default function Hero() {
 
           {/* 입력 바 */}
           <form onSubmit={onSubmit} className="border-t border-slate-200/80">
-            <div className="relative p-3 sm:p-4">
-              <textarea
-                rows={2}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage(input);
+            <div className="p-3 sm:p-4 space-y-3">
+              {/* 첨부 배지 (선택 시 표시) */}
+              {file && (
+                <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="h-8 w-8 rounded-md overflow-hidden bg-slate-200 ring-1 ring-slate-200">
+                    {previewURL ? (
+                      <img src={previewURL} alt="preview" className="h-full w-full object-cover" />
+                    ) : null}
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium text-slate-800 line-clamp-1">{file.name}</div>
+                    <div className="text-slate-500 text-xs">{fmtKB(file.size)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-white"
+                    title="Remove attachment"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* 입력 + 첨부 + 전송 */}
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onPickFile}
+                  />
+                  <span>📎 Attach</span>
+                </label>
+
+                <textarea
+                  rows={2}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      onSubmit(e);
+                    }
+                  }}
+                  className="
+                    flex-1 rounded-xl border border-slate-200
+                    bg-slate-50 focus:bg-white outline-none
+                    text-[15px] sm:text-[16px] leading-6 sm:leading-7
+                    placeholder:text-slate-400 text-slate-900
+                    px-3 py-2.5 ring-1 ring-transparent focus:ring-2 focus:ring-sky-400
+                  "
+                  placeholder={
+                    file
+                      ? "Image will be sent (text ignored while an image is attached)…"
+                      : "Type your message… (Shift+Enter for new line)"
                   }
-                }}
-                className="
-                  block w-full resize-none bg-slate-50 focus:bg-white outline-none
-                  text-[15px] sm:text-[16px] leading-6 sm:leading-7
-                  placeholder:text-slate-400 text-slate-900
-                  rounded-xl pr-20 pl-10 sm:pl-12 py-2.5
-                  ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-400
-                "
-                placeholder="Type your message… (Shift+Enter for new line)"
-              />
+                />
 
-              {/* 전송 버튼: 우측 '가운데'로 위치 */}
-              <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                className="
-                  absolute right-4 top-1/2 -translate-y-1/2
-                inline-flex h-10 w-10 items-center justify-center
-                rounded-full bg-[#88A8FF] text-white shadow-md
-                hover:brightness-105 active:brightness-95 transition
-                disabled:opacity-50 disabled:cursor-not-allowed
-            "
-                aria-label="Send"
-                title={!input.trim() ? "Enter some text first" : "Send"}
-              >
-                {loading ? (
-                  <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-                    <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="2" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="translate-y-[1px]">
-                    <path
-                      d="M12 5l6 6M12 5L6 11M12 5v14"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </button>
+                {/* 전송 버튼 (textarea 바깥) */}
+                <button
+                  type="submit"
+                  disabled={loading || (!file && !input.trim())}
+                  className="
+                    inline-flex h-11 px-5 items-center justify-center
+                    rounded-full bg-[#88A8FF] text-white font-semibold
+                    shadow-md hover:brightness-105 active:brightness-95
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  "
+                  title={file ? "Send image" : "Send message"}
+                >
+                  {loading ? "…" : "Send"}
+                </button>
+              </div>
 
-              {/* 안내 문구: 응답 지연 알림 */}
-              <p className="mt-2 text-xs text-slate-500 text-right">
-                {loading ? "Analyzing… this may take up to ~30 seconds." : "Responses may take up to ~30 seconds."}
+              {/* 안내 문구 */}
+              <p className="text-xs text-slate-500 text-right">
+                {loading
+                  ? "Uploading/Analyzing… this may take up to ~30 seconds."
+                  : "Responses may take up to ~30 seconds."}
               </p>
             </div>
           </form>
         </div>
 
-        {/* 예시 칩 (ChatGPT Quick prompts 느낌) */}
+        {/* 예시 칩 */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {[
             { key: "semantic", label: "Email looks suspicious" },
