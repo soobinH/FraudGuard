@@ -146,7 +146,7 @@ VITE_WA_PHONE=<국가코드 포함 WhatsApp 번호>
 | 역할 | 이름 |
 |---|---|
 | 풀스택 개발 (전체 코드 담당), PM | 황수빈 (Korea) |
-| 기획·비즈니스 모델 | 팀원 (Indonesia) |
+| 기획·비즈니스 모델·Gemini Fine-tuning | 팀원 (Indonesia) |
 | 기획·디자인·비즈니스 모델 | 팀원 (Thailand) |
 | 기획·디자인 | 팀원 (Korea) |
 
