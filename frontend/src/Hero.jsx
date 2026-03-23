@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { analyzeText, analyzeImage } from "./lib/n8nClient";
 
 export default function Hero() {
   /* ---------- state ---------- */
@@ -13,7 +14,7 @@ export default function Hero() {
     {
       role: "assistant",
       content:
-        "Hi! Paste a suspicious message, phone number, or link and I’ll analyze whether it’s a scam.\n\n💡 You can also click one of the example buttons below to get started.",
+        "Hi! Paste a suspicious message, phone number, or link and I'll analyze whether it's a scam.\n\n💡 You can also click one of the example buttons below to get started.",
     },
   ]);
 
@@ -24,7 +25,7 @@ export default function Hero() {
     phone:
       "This phone number +1 (347) 555-0199 keeps calling and asking for my bank details. Is it a scam?",
     bank:
-      "Someone asked me to transfer a ‘refundable deposit’ to this bank account: 123-456-789. Could this be a scam?",
+      "Someone asked me to transfer a 'refundable deposit' to this bank account: 123-456-789. Could this be a scam?",
     phish:
       "Is this URL safe or a phishing attempt? http://bit.ly/secure-account-verify",
     malware:
@@ -42,14 +43,13 @@ export default function Hero() {
 
   useEffect(() => {
     if (!file) {
-      if (previewURL) URL.revokeObjectURL(previewURL);
       setPreviewURL("");
       return;
     }
     const url = URL.createObjectURL(file);
     setPreviewURL(url);
     return () => URL.revokeObjectURL(url);
-  }, [file]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [file]);
 
   useEffect(() => {
     return () => {
@@ -62,51 +62,6 @@ export default function Hero() {
     };
   }, []);
 
-  /* ---------- n8n endpoints ---------- */
-  const N8N_TEXT_GET =
-    import.meta.env.VITE_N8N_WEBHOOK_URL ||
-    "https://n8n.vtriadi.site/webhook/b2a306fa-3a35-4c34-8009-1ee5b4130761";
-
-  const N8N_IMAGE_POST =
-    import.meta.env.VITE_N8N_IMAGE_WEBHOOK_URL ||
-    "https://n8n.vtriadi.site/webhook/b4cba643-d1b2-46dd-a467-e08b19eb0b5e";
-
-  /* ---------- calls ---------- */
-  const callN8nGet = async (message) => {
-    const url = `${N8N_TEXT_GET}?${new URLSearchParams({ chatinput: message })}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
-    }
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      const data = await res.json().catch(() => ({}));
-      if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
-      if (typeof data?.output === "string" && data.output.trim()) return data.output;
-      return JSON.stringify(data, null, 2);
-    }
-    return await res.text();
-  };
-
-  const callN8nPostImage = async (imageFile) => {
-    const fd = new FormData();
-    fd.append("image", imageFile, imageFile.name); // Function node expects binary.image
-    const res = await fetch(N8N_IMAGE_POST, { method: "POST", body: fd, mode: "cors" });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
-    }
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      const data = await res.json().catch(() => ({}));
-      if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
-      if (typeof data?.output === "string" && data.output.trim()) return data.output;
-      return JSON.stringify(data, null, 2);
-    }
-    return await res.text();
-  };
-
   /* ---------- send ---------- */
   const sendText = async (text) => {
     if (!text.trim() || loading) return;
@@ -118,7 +73,7 @@ export default function Hero() {
     setMessages((prev) => [...prev, { role: "assistant", typing: true, id: typingId }]);
 
     try {
-      const out = await callN8nGet(text.trim());
+      const out = await analyzeText(text.trim());
       setMessages((prev) =>
         prev.map((m) => (m.id === typingId ? { role: "assistant", content: out } : m))
       );
@@ -130,7 +85,7 @@ export default function Hero() {
                 role: "assistant",
                 error: true,
                 content:
-                  "Sorry, I couldn’t reach the analyzer. If this keeps happening, check the webhook URL and CORS.",
+                  "Sorry, I couldn't reach the analyzer. If this keeps happening, check the webhook URL and CORS.",
               }
             : m
         )
@@ -160,7 +115,7 @@ export default function Hero() {
     setMessages((prev) => [...prev, { role: "assistant", typing: true, id: typingId }]);
 
     try {
-      const out = await callN8nPostImage(imageFile);
+      const out = await analyzeImage(imageFile);
       setMessages((prev) =>
         prev.map((m) => (m.id === typingId ? { role: "assistant", content: out } : m))
       );
@@ -249,7 +204,7 @@ export default function Hero() {
             Your AI Fraud Detective
           </h1>
           <p className="mx-auto mt-3 sm:mt-4 max-w-2xl text-[15px] sm:text-base text-slate-800/85">
-            Ask about suspicious messages, numbers, links, or files. I’ll help you decide if it’s a scam.
+            Ask about suspicious messages, numbers, links, or files. I'll help you decide if it's a scam.
           </p>
         </div>
 

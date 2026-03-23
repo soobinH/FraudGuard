@@ -2,10 +2,17 @@ import React, { useState } from "react";
 import Hero from "./Hero";
 
 /* ================= config ================= */
-const WHATSAPP_NUMBER = import.meta.env.VITE_WA_PHONE || "628979129568"; 
+const WHATSAPP_NUMBER = import.meta.env.VITE_WA_PHONE || "628979129568";
 // e.g., "6281234567890" (no "+", no spaces)
 const WHATSAPP_GREETING =
   "Hi! I came from the website. I'd like to chat with the FraudGuard assistant.";
+
+const NAV_LINKS = [
+  { label: "Features", href: "#features" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "API", href: "#api" },
+  { label: "Dashboard", href: "#dashboard" },
+];
 
 /* ================= helpers ================= */
 function buildWhatsAppLink(phone, text) {
@@ -38,12 +45,7 @@ function Header({ onToggleMenu }) {
           </a>
 
           <nav className="hidden md:flex items-center gap-6">
-            {[
-              { label: "Features", href: "#features" },
-              { label: "Pricing", href: "#pricing" },
-              { label: "API", href: "#api" },
-              { label: "Dashboard", href: "#dashboard" },
-            ].map((n) => (
+            {NAV_LINKS.map((n) => (
               <a
                 key={n.label}
                 href={n.href}
@@ -109,12 +111,7 @@ function MobileMenu({ open }) {
                       bg-white/70 backdrop-blur-xl shadow-[0_10px_30px_rgba(2,6,23,0.06)]">
         <div className="px-4 py-4 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Features", href: "#features" },
-              { label: "Pricing", href: "#pricing" },
-              { label: "API", href: "#api" },
-              { label: "Dashboard", href: "#dashboard" },
-            ].map((n) => (
+            {NAV_LINKS.map((n) => (
               <a
                 key={n.label}
                 href={n.href}

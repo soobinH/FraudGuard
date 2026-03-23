@@ -1,37 +1,35 @@
-// n8nClient.js
-export const N8N_ENDPOINT =
+export const N8N_TEXT_URL =
   import.meta.env.VITE_N8N_WEBHOOK_URL ||
-
   "https://n8n.vtriadi.site/webhook/b2a306fa-3a35-4c34-8009-1ee5b4130761";
 
-// form-data로 chatinput 하나만 보냄 (POST)
-export async function analyzeWithN8N(message, { signal } = {}) {
-  const fd = new FormData();
-  fd.append("chatinput", message);
+export const N8N_IMAGE_URL =
+  import.meta.env.VITE_N8N_IMAGE_WEBHOOK_URL ||
+  "https://n8n.vtriadi.site/webhook/b4cba643-d1b2-46dd-a467-e08b19eb0b5e";
 
-  const res = await fetch(N8N_ENDPOINT, {
-    method: "POST",
-    body: fd,
-    signal,
-    // 헤더를 명시하지 않음: FormData가 boundary 포함해서 자동 설정됨
-  });
-
-  // n8n이 application/json이면 json, 아니면 text로 대비
-  const text = await res.text();
-  const data = safeJson(text);
-
+async function parseResponse(res) {
   if (!res.ok) {
-    throw new Error(
-      `n8n ${res.status}: ${data?.error || text || "Unknown error"}`
-    );
+    const txt = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}${txt ? ` • ${txt}` : ""}`);
   }
-  return data ?? { output: text };
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    const data = await res.json().catch(() => ({}));
+    if (typeof data?.reply === "string" && data.reply.trim()) return data.reply;
+    if (typeof data?.output === "string" && data.output.trim()) return data.output;
+    return JSON.stringify(data, null, 2);
+  }
+  return res.text();
 }
 
-function safeJson(t) {
-  try {
-    return JSON.parse(t);
-  } catch {
-    return null;
-  }
+export async function analyzeText(message) {
+  const url = `${N8N_TEXT_URL}?${new URLSearchParams({ chatinput: message })}`;
+  const res = await fetch(url, { method: "GET" });
+  return parseResponse(res);
+}
+
+export async function analyzeImage(imageFile) {
+  const fd = new FormData();
+  fd.append("image", imageFile, imageFile.name);
+  const res = await fetch(N8N_IMAGE_URL, { method: "POST", body: fd, mode: "cors" });
+  return parseResponse(res);
 }
